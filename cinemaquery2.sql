@@ -20,7 +20,7 @@ HAVING num_of_seats_booked > 1
 SELECT 
 	room_id,
 	COUNT(DISTINCT (film_id)) as num_of_films,
-	DATE_FORMAT(start_time,'%Y-%m-%d') AS day
+	DATE(start_time) AS day
 FROM screening 
 GROUP BY room_id, day
 HAVING num_of_films > 2;
