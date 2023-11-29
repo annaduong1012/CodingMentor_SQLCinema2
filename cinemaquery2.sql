@@ -17,7 +17,8 @@ GROUP BY booking_id
 HAVING num_of_seats_booked > 1
 
 #3. Show room show more than 2 film in one day
-SELECT room_id,
+SELECT 
+	room_id,
 	COUNT(DISTINCT (film_id)) as num_of_films,
 	DATE_FORMAT(start_time,'%Y-%m-%d') AS day
 FROM screening 
@@ -36,10 +37,7 @@ min_film_shown_per_room AS (
 	SELECT MIN(num_of_films) AS min_num_of_film
     FROM film_per_room
 )
-SELECT 
-	room_id,
-    name,
-    num_of_films
+SELECT room_id, name, num_of_films
 FROM film_per_room f
 JOIN min_film_shown_per_room m ON f.num_of_films = m.min_num_of_film
 JOIN room r ON f.room_id = r.id;
@@ -66,10 +64,7 @@ max_room_shown_per_film AS (
 	SELECT MAX(num_of_room) AS max_num_of_room
     FROM room_per_film
 )
-SELECT 
-	film_id, 
-    name, 
-    num_of_room
+SELECT film_id, name, num_of_room
 FROM room_per_film r
 JOIN max_room_shown_per_film m ON r.num_of_room = m.max_num_of_room
 JOIN film f ON r.film_id = f.id;
@@ -87,11 +82,11 @@ SELECT
 	film_id,
     name,
     SUM(length_min) AS total_length_min,
-	DATE_FORMAT(start_time,'%Y-%m-%d') AS day
+	DATE(start_time) AS day
 FROM screening s
 JOIN film f ON s.film_id = f.id
-WHERE DATE_FORMAT(start_time,'%Y-%m-%d') = '2022-05-28'
-GROUP BY film_id, day;
+WHERE DATE(start_time) = '2022-05-28'
+GROUP BY 1,4;
 
 #9. What film has showing time above and below average show time of all film
 WITH session_count AS (
@@ -150,7 +145,27 @@ JOIN avg_num_of_seats a ON n.seat_per_room > a.avg_num
 GROUP BY room_id
 
 #12 Ngoai nhung seat mà Ong Dung booking duoc o booking id = 1 thi ong CÓ THỂ (CAN) booking duoc nhung seat nao khac khong? - NOT DONE
-
+WITH dung_booking AS (
+	SELECT screening_id, booking_id, first_name, last_name, seat_id
+	FROM reserved_seat r
+	JOIN booking b ON r.booking_id = b.id
+	JOIN customer c ON b.customer_id = c.id
+	WHERE c.first_name = 'dung' AND c.last_name = 'nguyen'
+),
+booked_seat AS (
+	SELECT s.id AS seat_id, rs.booking_id, b.screening_id
+	FROM seat s
+	LEFT JOIN reserved_seat rs ON s.id = rs.seat_id
+	LEFT JOIN booking b ON rs.booking_id = b.id
+	WHERE b.screening_id IN (SELECT screening_id FROM dung_booking)
+)
+SELECT DISTINCT s.id AS seat_id
+FROM screening sc
+JOIN dung_booking d ON sc.id = d.screening_id
+JOIN room r ON sc.room_id = r.id
+JOIN seat s ON r.id = s.room_id
+WHERE s.id NOT IN (SELECT seat_id FROM booked_seat)
+    
 #13. Show Film with total screening and order by total screening. BUT ONLY SHOW DATA OF FILM WITH TOTAL SCREENING > 10
 SELECT 
 	film_id,
@@ -167,17 +182,60 @@ SELECT
 	DATE_FORMAT(start_time,'%a') AS weekdate,
     COUNT(b.id) AS booking_per_day
 FROM booking b
-JOIN screening s ON b.screening_id = s.id
+RIGHT JOIN screening s ON b.screening_id = s.id
 GROUP BY weekdate
 ORDER BY 2 DESC
 LIMIT 3
 
 #15. CALCULATE BOOKING rate over screening of each film ORDER BY RATES.
+SELECT 
+	f.name, 
+	COUNT(DISTINCT b.id) AS booking_count, 
+	COUNT(DISTINCT s.id) AS total_screening,
+	ROUND(COALESCE((COUNT(DISTINCT b.id) / COUNT(DISTINCT s.id) * 100),0),2) AS booking_rate_percentage
+FROM film f
+LEFT JOIN screening s ON f.id = s.film_id
+LEFT JOIN booking b ON s.id = b.screening_id
+GROUP BY 1
+ORDER BY 4 DESC;
 
 #16. CONTINUE Q15 -> WHICH film has rate over average ?.
+WITH booking_rate AS (
+	SELECT 
+		f.name, 
+		COUNT(DISTINCT b.id) AS booking_count, 
+		COUNT(DISTINCT s.id) AS total_screening,
+		ROUND(COALESCE((COUNT(DISTINCT b.id) / COUNT(DISTINCT s.id) * 100),0),2) AS booking_rate_percentage
+	FROM film f
+	LEFT JOIN screening s ON f.id = s.film_id
+	LEFT JOIN booking b ON s.id = b.screening_id
+	GROUP BY 1
+	ORDER BY 4 DESC
+),
+avg_booking_rate AS (
+	SELECT AVG(booking_rate_percentage) AS avg_rate
+    FROM booking_rate
+)
+SELECT 
+	name, 
+	booking_rate_percentage
+FROM booking_rate b
+JOIN avg_booking_rate a ON b.booking_rate_percentage > a.avg_rate
 
 #17.TOP 2 people who enjoy the least TIME (in minutes) in the cinema based on booking info - 
 #only count who has booking info (example : Dũng book film tom&jerry 4 times -> Dũng enjoy 90 mins x 4)
+SELECT 
+	CONCAT (c.first_name,' ', c.last_name) AS customer_name,
+    SUM(f.length_min) AS enjoy_time
+FROM customer c
+JOIN booking b ON c.id = b.customer_id
+JOIN reserved_seat rs ON b.id = rs.booking_id
+JOIN screening s ON b.screening_id = s.id
+JOIN film f ON s.film_id = f.id
+GROUP BY customer_name
+ORDER BY enjoy_time
+LIMIT 2;
+
 
         
 
