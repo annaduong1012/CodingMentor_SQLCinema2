@@ -144,7 +144,7 @@ FROM num_of_seats n
 JOIN avg_num_of_seats a ON n.seat_per_room > a.avg_num
 GROUP BY room_id
 
-#12 Ngoai nhung seat mà Ong Dung booking duoc o booking id = 1 thi ong CÓ THỂ (CAN) booking duoc nhung seat nao khac khong? - NOT DONE
+#12 Ngoai nhung seat mà Ong Dung booking duoc o booking id = 1 thi ong CÓ THỂ (CAN) booking duoc nhung seat nao khac khong?
 WITH dung_booking AS (
 	SELECT screening_id, booking_id, first_name, last_name, seat_id
 	FROM reserved_seat r
