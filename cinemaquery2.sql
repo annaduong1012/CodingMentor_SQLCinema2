@@ -178,14 +178,17 @@ HAVING total_screening > 10
 ORDER BY total_screening
 
 #14. TOP 3 DAY OF WEEK based on total booking
-SELECT 
-	DATE_FORMAT(start_time,'%a') AS weekdate,
-    COUNT(b.id) AS booking_per_day
-FROM booking b
-RIGHT JOIN screening s ON b.screening_id = s.id
-GROUP BY weekdate
-ORDER BY 2 DESC
-LIMIT 3
+WITH booking_per_weekday AS (
+	SELECT 
+		DATE_FORMAT(start_time,'%a') AS weekdate,
+		COUNT(b.id) AS booking_per_day,
+		RANK() OVER (ORDER BY COUNT(b.id) DESC) AS ranking
+	FROM booking b
+	RIGHT JOIN screening s ON b.screening_id = s.id
+	GROUP BY weekdate)
+SELECT weekdate, booking_per_day
+FROM booking_per_weekday
+WHERE ranking <= 3 AND booking_per_day != 0
 
 #15. CALCULATE BOOKING rate over screening of each film ORDER BY RATES.
 SELECT 
@@ -224,18 +227,21 @@ JOIN avg_booking_rate a ON b.booking_rate_percentage > a.avg_rate
 
 #17.TOP 2 people who enjoy the least TIME (in minutes) in the cinema based on booking info - 
 #only count who has booking info (example : Dũng book film tom&jerry 4 times -> Dũng enjoy 90 mins x 4)
-SELECT 
-	CONCAT (c.first_name,' ', c.last_name) AS customer_name,
-    SUM(f.length_min) AS enjoy_time
-FROM customer c
-JOIN booking b ON c.id = b.customer_id
-JOIN reserved_seat rs ON b.id = rs.booking_id
-JOIN screening s ON b.screening_id = s.id
-JOIN film f ON s.film_id = f.id
-GROUP BY customer_name
-ORDER BY enjoy_time
-LIMIT 2;
-
+WITH enjoy_time_per_customer AS (
+	SELECT 
+		CONCAT (c.first_name,' ', c.last_name) AS customer_name,
+		SUM(f.length_min) AS enjoy_time,
+		RANK() OVER (ORDER BY SUM(f.length_min)) AS ranking
+	FROM customer c
+	JOIN booking b ON c.id = b.customer_id
+	JOIN reserved_seat rs ON b.id = rs.booking_id
+	JOIN screening s ON b.screening_id = s.id
+	JOIN film f ON s.film_id = f.id
+	GROUP BY customer_name
+	ORDER BY enjoy_time)
+SELECT customer_name, enjoy_time
+FROM enjoy_time_per_customer
+WHERE ranking <= 2
 
         
 
