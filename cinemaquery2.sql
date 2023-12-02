@@ -145,23 +145,22 @@ JOIN avg_num_of_seats a ON n.seat_per_room > a.avg_num
 GROUP BY room_id
 
 #12 Ngoai nhung seat mà Ong Dung booking duoc o booking id = 1 thi ong CÓ THỂ (CAN) booking duoc nhung seat nao khac khong?
-WITH dung_booking AS (
-	SELECT screening_id, booking_id, first_name, last_name, seat_id
+WITH booking_id1 AS (
+	SELECT screening_id, booking_id, seat_id
 	FROM reserved_seat r
 	JOIN booking b ON r.booking_id = b.id
-	JOIN customer c ON b.customer_id = c.id
-	WHERE c.first_name = 'dung' AND c.last_name = 'nguyen'
+	WHERE b.id = 1
 ),
 booked_seat AS (
 	SELECT s.id AS seat_id, rs.booking_id, b.screening_id
 	FROM seat s
 	LEFT JOIN reserved_seat rs ON s.id = rs.seat_id
 	LEFT JOIN booking b ON rs.booking_id = b.id
-	WHERE b.screening_id IN (SELECT screening_id FROM dung_booking)
+	WHERE b.screening_id IN (SELECT screening_id FROM booking_id1)
 )
 SELECT DISTINCT s.id AS seat_id
 FROM screening sc
-JOIN dung_booking d ON sc.id = d.screening_id
+JOIN booking_id1 d ON sc.id = d.screening_id
 JOIN room r ON sc.room_id = r.id
 JOIN seat s ON r.id = s.room_id
 WHERE s.id NOT IN (SELECT seat_id FROM booked_seat)
